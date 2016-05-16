@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Week 7 part 1</title>
+  <script type="text/javascript" src="../../libraries/d3/d3.js"></script>
+  <style>
+      body {
+        font-family: "Helvetica Neue", Helvetica, "Segoe UI", Arial, freesans, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+      }
+
+      :hover.district{
+        stroke:black;
+        stroke-width:1.5;
+      }
+
+      .districtText{
+        fill: #555;
+        font-size: 12px;
+      }
+
+      .datapoint{
+        
+      }
+
+      .centroid {
+        stroke: black;
+      }
+
+      .domain {
+        fill: #A0A0A0;
+      }
+
+      .handle {
+        fill:steelblue;
+        stroke:black;
+        stroke-width: 1.5;
+      }
+
+  </style>
+
+</head>
+<body>
+  <script type="text/javascript">
+  //fill: #D0D0D0;
+  //stroke: #A0A0A0;
+    window.onload = function() { init() };
+    // data
+    var chart_height =500;
+    var chart_width = 600;
+    var margin = {top: 20, right: 50, bottom: 10, left: 50};
+
+    var colorThresholded = d3.scale.threshold()
+      .domain([0, 20, 75, 200, 400])
+      .range(["#f2f0f7", "#dadaeb", "#bcbddc", "#9e9ac8", "#756bb1", "#54278f"]);
+
+    var colorLinear = d3.scale.linear()
+      .domain([1, 1.5])
+      .range(["#e5f6f2", "#18423a"]);
+
+    var colorLog = d3.scale.log()
+      .domain([0.1, 1500])
+      .range(["#e5f6f2", "#18423a"]);
+
+    var colorCategory = d3.scale.category20();
+
+    var projection;
+
+    var mapData;
+
+    var svg3, mapGroup, legendGroup;
+
+    function renderSmileyPerAreal(){
+      d3.select("#d_header").select("h1").text("Smiley companies per area")
+      colorLog.domain([0.1, 100])
+      drawMap(mapData, function(e){return colorLog(e.properties.SmileyVirksomheder / e.properties.Areal)});
+      renderLegend(colorLog,[100, 10, 1, 0.1], "/km²");
+    }
+    function renderSmileyPerDensity(){
+      d3.select("#d_header").select("h1").text("Smiley companies per population density")
+      colorLog.domain([1e-6, 1e-2])
+      drawMap(mapData, function(e){return colorLog(e.properties.SmileyVirksomheder / e.properties.Indbyggere / e.properties.Areal)});
+      renderLegend(colorLog,[1e-2, 1e-4, 1e-6], "/people/km²");
+    }
+    function renderPopulationDensity(){
+      d3.select("#d_header").select("h1").text("Population density")
+      colorLog.domain([10, 10000])
+      drawMap(mapData, function(e){return colorLog(e.properties.Indbyggere / e.properties.Areal)});
+      renderLegend(colorLog,[10000, 1000, 100, 10], "/km²");
+    }
+    function renderAverageRating(){
+      d3.select("#d_header").select("h1").text("Average smiley rating")
+      colorLinear.domain([1, 1.5])
+      drawMap(mapData, function(e){return colorLinear(e.properties.AverageSmiley)});
+      renderLegend(colorLinear,[1.5, 1.25, 1], "");
+    }
+    function renderMostCommonCategory(){
+      d3.select("#d_header").select("h1").text("Most common sector")
+      drawMap(mapData, function(e){return colorCategory(e.properties.MostCommonPixi)});
+      renderLegend(colorCategory,["Restauranter, pizzeriaer, kantiner m.m.", "Grillbarer, pølsevogne m.m.", "Dagligvarer", "Bo- og væresteder m.m.", "Transport"], "");
+    }
+
+    function renderLegend(colorScale, values, unit){
+      var legend = legendGroup.selectAll(".legend").data(values);
+
+      var legendItem = legend.enter().append("g")
+        .attr("class", "legend")
+        .attr("transform", function(d, i) { return "translate(0," + i * 18 + ")"; });
+
+      legendItem.append("rect")
+        .attr("x", chart_width)
+        .attr("width", 18)
+        .attr("height", 18)
+        .style("fill", colorScale);
+
+      legendItem.append("text")
+        .attr("x", chart_width - 10)
+        .attr("y", 9)
+        .attr("dy", ".35em")
+        .style("text-anchor", "end")
+        .style("fill", "white");
+
+      legend.select("rect").transition().duration(500).style("fill", colorScale);
+      legend.select("text").transition().duration(500).style("fill", "black").text(function(d) { return d + unit; });
+
+      legend.exit().remove();
+    }
+
+    function drawMap(dataset, fill){
+      
+      // First Pass
+      centroid = [10.349506, 55.834041];
+      scale = 5000;
+      projection = d3.geo.mercator().scale([scale]).center(centroid).translate([chart_width/2, chart_height/2]);
+      var path = d3.geo.path().projection(projection)
+
+      //Second pass fix scale and offset
+      bounds  = path.bounds(dataset);
+      var hscale  = scale*chart_width  / (bounds[1][0] - bounds[0][0]);
+      var vscale  = scale*chart_height / (bounds[1][1] - bounds[0][1]);
+      var scale   = (hscale < vscale) ? hscale: vscale;
+      var offset  = [chart_width - (bounds[0][0] + bounds[1][0])/2,
+                      chart_height - (bounds[0][1] + bounds[1][1])/2];
+
+      projection = d3.geo.mercator().scale([scale]).center(centroid).translate(offset);
+      var path = d3.geo.path().projection(projection)
+      
+      var mapFeatures = mapGroup.selectAll("path").data(dataset.features);
+
+      mapFeatures.enter()
+        .append("path")
+        .attr({
+          d:path,
+          class: (e) => "district",
+          fill: "#ffffff"
+        }).append("svg:title")
+        .text(function(e) { return e.properties.Description + "\nCitizens: " + e.properties.Indbyggere + "\nSmiley Companies: " + e.properties.SmileyVirksomheder + "\nMost common sector: " + e.properties.MostCommonPixi + "\nAverage Smiley Rating: " + e.properties.AverageSmiley.toFixed(2)});
+
+      mapFeatures.transition().duration(500).attr({fill: fill});
+
+      /*
+      mapGroup.selectAll("text").data(dataset.features).enter()
+        .append("text").text(d => d.properties.Areal).attr({
+          x: d => path.centroid(d)[0],
+          y: d => path.centroid(d)[1],
+          "text-anchor":"middle",
+          class: "districtText",
+        });
+      */
+    }
+
+    function init(){
+
+      svg3 = d3.select("#d_map")
+      .append("svg")
+      .attr("width", chart_width + margin.left + margin.right)
+      .attr("height", chart_height + margin.top + margin.bottom);
+
+      mapGroup = svg3.append("g").attr("class", "mapGroup");
+
+      legendGroup = svg3.append("g").attr("class", "legendGroup")
+        .attr("transform", function(d, i) { return "translate(0," + i * 18 + ")"; });
+
+      // Load Data
+      d3.json("../data/postnumre_clean.geojson", function(json) {
+          mapData = json;
+          renderPopulationDensity();
+      });
+    }
+    
+  </script>
+  
+  <div id="2d_container">
+    <button onclick="renderSmileyPerAreal()">Units/Area</button>
+    <button onclick="renderSmileyPerDensity()">Units/Population density</button> 
+    <button onclick="renderPopulationDensity()">Population density</button> 
+    <button onclick="renderAverageRating()">Average smiley rating</button>
+    <button onclick="renderMostCommonCategory()">Most common sector</button> 
+    <div id="d_header"><h1></h1></div>
+    <div id="d_map"></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,540 @@
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Smiley Project</title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
+        <script type="text/javascript" src="d3/d3.js"></script>
+        <link href='https://fonts.googleapis.com/css?family=Roboto:400,300' rel='stylesheet' type='text/css'>
+        <link rel="stylesheet" type="text/css" href="style.css">
+    </head>
+    <body>
+        <div class="container-top">
+            <a href="index.html">Smiley project</a>
+        </div>
+        <div id= "middle-strip">
+            <div id="introduction">
+                <h1 id="firstH1">Welcome to our website!</h1>
+                <p></p>
+            </div>
+            <div id="StackBarContent">
+                <h1>Distribution of smilies</h1>
+                <p>On the chart below is the distribution of smilies given within each industry. </p>
+                <script type="text/javascript">
+                    var margin1 = {top: 20, right: 100, bottom: 210, left: 60},
+                        width = 960 - margin1.left - margin1.right,
+                        height = 500 - margin1.top - margin1.bottom;
+
+                    var x = d3.scale.ordinal()
+                        .rangeRoundBands([0, width], .1);
+
+                    var y = d3.scale.linear()
+                        .rangeRound([height, 0]);
+
+                    var color = d3.scale.ordinal()
+                        .range(["#98abc5", "#8a89a6", "#7b6888", "#6b486b"]);
+
+                    var xAxis = d3.svg.axis()
+                        .scale(x)
+                        .orient("bottom");
+
+                    var yAxis = d3.svg.axis()
+                        .scale(y)
+                        .orient("left")
+                        .tickFormat(d3.format(".0%"));
+
+                    var svg1 = d3.select("#StackBarContent").append("svg")
+                        .attr("id", "stackBarChart")
+                        .attr("width", width + margin1.left + margin1.right)
+                        .attr("height", height + margin1.top + margin1.bottom)
+                      .append("g")
+                        .attr("transform", "translate(" + margin1.left + "," + margin1.top + ")");
+
+                    d3.csv("rating.csv", function(error, data) {
+                      if (error) throw error;
+
+                      color.domain(d3.keys(data[0]).filter(function(key) { return key !== "pixibranche"; }));
+
+                      data.forEach(function(d) {
+                        var y0 = 0;
+                        d.smiley = color.domain().map(function(name) { return {name: name, y0: y0, y1: y0 += +d[name]}; })
+                        d.smiley.forEach(function(d){ d.y0 /= y0; d.y1 /= y0;});
+                      });
+
+                      data.sort(function(a, b) { return b.smiley[0].y1 - a.smiley[0].y1; });
+
+                      x.domain(data.map(function(d) { return d.pixibranche; }));
+
+                      svg1.append("g")
+                            .transition()
+                            .delay(500)
+                            .duration(300)
+                          .attr("class", "x axis")
+                          .attr("transform", "translate(0," + height + ")")
+                          .call(xAxis)
+                        .selectAll("text")
+                        .attr("y", 0)
+                        .attr("x", 9)
+                        .attr("dy", ".35em")
+                        .attr("font-size", "10px")
+                        .transition()
+                          .duration(700)
+                        .attr("transform", "rotate(60)")
+                        .style("text-anchor", "start");
+
+                      svg1.append("g")
+                          .transition()
+                          .delay(500)
+                          .duration(700)
+                          .attr("class", "y axis")
+                          .call(yAxis);
+
+                      var pixibranche = svg1.selectAll(".pixibranche")
+                          .data(data)
+                        .enter().append("g")
+                          .attr("class", "pixibranche")
+                          .attr("transform", function(d) { return "translate(" + x(d.pixibranche) + ",0)"; });
+
+                      pixibranche.selectAll("rect")
+                          .data(function(d) { return d.smiley; })
+                        .enter()
+                          .append("rect")
+                          .attr("width", x.rangeBand())
+                          .attr("y", function(d) { return y(d.y1); })
+                          .attr("height", function(d) { return y(d.y0) - y(d.y1); })
+                          .style("fill", function(d) { return color(d.name); });
+
+                      var legend = svg1.selectAll(".legend")
+                          .data(color.domain().slice())
+                        .enter().append("g")
+                          .attr("class", "legend")
+                          .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
+
+                      legend.append("rect")
+                          .attr("x", width + 48)
+                          .attr("width", 18)
+                          .attr("height", 18)
+                          .style("fill", color);
+
+                      legend.append("text")
+                          .attr("x", width + 38)
+                          .attr("y", 9)
+                          .attr("dy", ".35em")
+                          .style("text-anchor", "end")
+                          .text(function(d) { return d; });
+
+                    });
+            </script>
+            </div>
+            <hr>
+            <div id="BubbleCloud">
+                <h1>Name of a bad smiley</h1>
+                <p>Here is a bubble chart of words of business that were given a bad smiley more than once. 4 is the same as the worst smiley, while 1 is the same as the best smiley.</p>
+                <script type="text/javascript">
+                    var maxSize = 700;
+
+                    var bubble = d3.layout.pack()
+                        .sort(null)
+                        .size([maxSize,maxSize])
+                        .padding(1);
+
+                    var svg2 = d3.select("#BubbleCloud")
+                        .append("svg")
+                        .attr("id", "BubbleChart")
+                        .attr("width", maxSize)
+                        .attr("height", maxSize)
+                        .attr("class", "bubble");
+
+                        var legendGroup1 = svg2.append("g").attr("class", "legendGroup")
+                                .attr("transform", function(d, i) { return "translate(0," + i * 18 + ")"; });
+                    
+                    d3.csv("worstSmileyNames.csv", function(data) {
+
+                        data = data.map(function(d){
+                            d.value = +d["rating"];
+                            d.value = d.value*d.value;
+                            console.log(d.value);
+                            return d;
+                        });
+
+                        var nodes = bubble.nodes({children:data}).filter(function(d) { return !d.children; });
+
+                        var bubbles = svg2.append("g")
+                            .attr("transform", "translate(0,0)")
+                            .selectAll(".bubble")
+                            .data(nodes)
+                            .enter();
+
+                        //create the bubbles
+                        bubbles.append("circle")
+                            .attr("r", function(d){ return d.r; })
+                            .attr("cx", function(d){ return d.x; })
+                            .attr("cy", function(d){ return d.y; })
+                            .style("fill", function(d) {
+                                if(d.value > 9){
+                                    return "#3182bd";
+                                } else if (d.value > 2.56){
+                                    return "#fdae6b";
+                                }else {
+                                    return "#a1d99b";
+                                } 
+                            });
+                        var color = d3.scale.ordinal()
+                        .range(["#3182bd", "#fdae6b", "#a1d99b"]);
+
+                        renderLegend1(color, ["Rating]4:3]", "Rating[3:1.6]", "Rating[1.6:1.4["], "")
+                        //format the text for each bubble
+                        bubbles.append("text")
+                            .attr("x", function(d){ return d.x; })
+                            .attr("y", function(d){ return d.y + 5; })
+                            .attr("text-anchor", "middle")
+                            .text(function(d){ return d["navn"]; })
+                            .style({
+                                "fill":"white", 
+                                "font-family":"Helvetica Neue, Helvetica, Arial, san-serif",
+                                "font-size": "12px"
+                            });
+                    });
+                    
+                    function renderLegend1(colorScale, values, unit){
+                          var legend = legendGroup1.selectAll(".legend").data(values);
+
+                          var legendItem = legend.enter().append("g")
+                            .attr("class", "legend")
+                            .attr("transform", function(d, i) { return "translate(0," + i * 18 + ")"; });
+
+                          legendItem.append("rect")
+                            .attr("x", 600)
+                            .attr("width", 18)
+                            .attr("height", 18)
+                            .style("fill", colorScale);
+
+                          legendItem.append("text")
+                            .attr("x", 600 - 10)
+                            .attr("y", 9)
+                            .attr("dy", ".35em")
+                            .style("text-anchor", "end")
+                            .style("fill", "white");
+
+                          legend.select("rect").transition().duration(500).style("fill", colorScale);
+                          legend.select("text").transition().duration(500).style("fill", "black").text(function(d) { return d + unit; });
+
+                          legend.exit().remove();
+                    }
+                </script>
+            </div>
+            <hr>
+            <div id="smileyMap">
+                <script type="text/javascript">
+                  //fill: #D0D0D0;
+                  //stroke: #A0A0A0;
+                    window.onload = function() { init() };
+                    // data
+                    var chart_height =800;
+                    var chart_width = 760;
+                    var margin = {top: 30, right: 50, bottom: 10, left: 50};
+
+                    var colorThresholded = d3.scale.threshold()
+                      .domain([0, 20, 75, 200, 400])
+                      .range(["#f2f0f7", "#dadaeb", "#bcbddc", "#9e9ac8", "#756bb1", "#54278f"]);
+
+                    var colorLinear = d3.scale.linear()
+                      .domain([1, 1.5])
+                      .range(["#e5f6f2", "#18423a"]);
+
+                    var colorLog = d3.scale.log()
+                      .domain([0.1, 1500])
+                      .range(["#e5f6f2", "#18423a"]);
+
+                    var colorCategory = d3.scale.category20();
+
+                    var projection;
+
+                    var mapData;
+
+                    var svg3, mapGroup, legendGroup;
+
+                    function renderSmileyPerAreal(){
+                      d3.select("#d_header").select("h1").text("Smiley companies per area")
+                      d3.select("#d_header").select("p").text("Visualising the density of smileys companies across denmark. The highest density is found in the cities.")
+                      
+                      colorLog.domain([0.1, 100])
+                      drawMap(mapData, function(e){return colorLog(e.properties.SmileyVirksomheder / e.properties.Areal)});
+                      renderLegend(colorLog,[100, 10, 1, 0.1], "/km²");
+                    }
+                    function renderSmileyPerDensity(){
+                      d3.select("#d_header").select("h1").text("Smiley companies per population density")
+                      d3.select("#d_header").select("p").text("Visualising the number of smiley companies over the population density. Here the cities does not stand out as much as before, in tourist areas, where the number of residents is a lot higher this number rises.")
+                      colorLog.domain([1e-6, 1e-2])
+                      drawMap(mapData, function(e){return colorLog(e.properties.SmileyVirksomheder / e.properties.Indbyggere / e.properties.Areal)});
+                      renderLegend(colorLog,[1e-2, 1e-4, 1e-6], "/people/km²");
+                    }
+                    function renderPopulationDensity(){
+                      d3.select("#d_header").select("h1").text("Population density")
+                      d3.select("#d_header").select("p").text("Visualising population density as reference to the other maps.")
+                      colorLog.domain([10, 10000])
+                      drawMap(mapData, function(e){return colorLog(e.properties.Indbyggere / e.properties.Areal)});
+                      renderLegend(colorLog,[10000, 1000, 100, 10], "/km²");
+                    }
+                    function renderAverageRating(){
+                      d3.select("#d_header").select("h1").text("Average smiley rating")
+                      d3.select("#d_header").select("p").text("The average smiley of a company in each post code. The capital area seems to have worse average ratings than the rest of the country. Maybe because of the higher number of available customers.")
+                      colorLinear.domain([1, 1.5])
+                      drawMap(mapData, function(e){return colorLinear(e.properties.AverageSmiley)});
+                      renderLegend(colorLinear,[1.5, 1.25, 1], "");
+                    }
+                    function renderMostCommonCategory(){
+                      d3.select("#d_header").select("h1").text("Most common sector")
+                      d3.select("#d_header").select("p").text("Counting the most common sector for every post code.")
+                      drawMap(mapData, function(e){return colorCategory(e.properties.MostCommonPixi)});
+                      renderLegend(colorCategory,["Restauranter, pizzeriaer, kantiner m.m.", "Grillbarer, pølsevogne m.m.", "Dagligvarer", "Bo- og væresteder m.m.", "Transport"], "");
+                    }
+
+                    function renderLegend(colorScale, values, unit){
+                      var legend = legendGroup.selectAll(".legend").data(values);
+
+                      var legendItem = legend.enter().append("g")
+                        .attr("class", "legend")
+                        .attr("transform", function(d, i) { return "translate(0," + i * 18 + ")"; });
+
+                      legendItem.append("rect")
+                        .attr("x", chart_width)
+                        .attr("width", 18)
+                        .attr("height", 18)
+                        .style("fill", colorScale);
+
+                      legendItem.append("text")
+                        .attr("x", chart_width - 10)
+                        .attr("y", 9)
+                        .attr("dy", ".35em")
+                        .style("text-anchor", "end")
+                        .style("fill", "white");
+
+                      legend.select("rect").transition().duration(500).style("fill", colorScale);
+                      legend.select("text").transition().duration(500).style("fill", "black").text(function(d) { return d + unit; });
+
+                      legend.exit().remove();
+                    }
+
+                    function drawMap(dataset, fill){
+
+                      // First Pass
+                      centroid = [10.349506, 55.834041];
+                      scale = 5000;
+                      projection = d3.geo.mercator().scale([scale]).center(centroid).translate([chart_width/2, chart_height/2]);
+                      var path = d3.geo.path().projection(projection)
+
+                      //Second pass fix scale and offset
+                      bounds  = path.bounds(dataset);
+                      var hscale  = scale*chart_width  / (bounds[1][0] - bounds[0][0]);
+                      var vscale  = scale*chart_height / (bounds[1][1] - bounds[0][1]);
+                      var scale   = (hscale < vscale) ? hscale: vscale;
+                      var offset  = [chart_width - (bounds[0][0] + bounds[1][0])/2,
+                                      chart_height - (bounds[0][1] + bounds[1][1])/2];
+
+                      projection = d3.geo.mercator().scale([scale]).center(centroid).translate(offset);
+                      var path = d3.geo.path().projection(projection)
+
+                      var mapFeatures = mapGroup.selectAll("path").data(dataset.features);
+
+                      mapFeatures.enter()
+                        .append("path")
+                        .attr({
+                          d:path,
+                          class: function(e) { return "district"},
+                          fill: "#ffffff"
+                        }).append("svg:title")
+                        .text(function(e) { return e.properties.Description + "\nCitizens: " + e.properties.Indbyggere + "\nSmiley Companies: " + e.properties.SmileyVirksomheder + "\nMost common sector: " + e.properties.MostCommonPixi + "\nAverage Smiley Rating: " + e.properties.AverageSmiley.toFixed(2)});
+
+                      mapFeatures.transition().duration(500).attr({fill: fill});
+
+                      /*
+                      mapGroup.selectAll("text").data(dataset.features).enter()
+                        .append("text").text(d => d.properties.Areal).attr({
+                          x: d => path.centroid(d)[0],
+                          y: d => path.centroid(d)[1],
+                          "text-anchor":"middle",
+                          class: "districtText",
+                        });
+                      */
+                    }
+
+                    function init(){
+
+                      svg3 = d3.select("#d_map")
+                      .append("svg")
+                      .attr("width", chart_width + margin.left + margin.right)
+                      .attr("height", chart_height + margin.top + margin.bottom);
+
+                      mapGroup = svg3.append("g").attr("class", "mapGroup");
+
+                      legendGroup = svg3.append("g").attr("class", "legendGroup")
+                        .attr("transform", function(d, i) { return "translate(0," + i * 18 + ")"; });
+
+                      // Load Data
+                      d3.json("postnumre_clean.geojson", function(json) {
+                          mapData = json;
+                          renderAverageRating();
+                      });
+                    }
+
+                  </script>
+                  <div id="2d_container">
+                <button onclick="renderSmileyPerAreal()">Units/Area</button>
+                <button onclick="renderSmileyPerDensity()">Units/Population density</button> 
+                <button onclick="renderPopulationDensity()">Population density</button> 
+                <button onclick="renderAverageRating()">Average smiley rating</button>
+                <button onclick="renderMostCommonCategory()">Most common sector</button> 
+                <div id="d_header"><h1></h1><p></p></div>
+                <div id="d_map"></div>
+              </div>
+            </div>
+            <hr>
+            <div id="neuralNetwork">
+                <h1>Neural net</h1>
+                <p>
+                    This is a visualization of a trained neural network.
+                    What you see are the different weights from the network. The weights are the size of each node in the graph.
+                    The input vector consists of each industry-type and the previous smiley given. The output is then the next smiley given.
+                    This show how much impact the industry-type and the previous smiley is a factor when a new smiley is given.
+                    The network is trained one input vector at a time, and this is repeated 100 times.
+                </p>
+                <p style="font-weight: 500">Discussion</p>
+                <p>
+                    The network was meant for predicting the next smiley given the former smiley and the industry-type.
+                    Because of the huge amount of good smilies given, this was almost impossible(we think).
+                    Therefore we choose to make this visualization instead.
+                </p>
+                <img src="http://i1.kym-cdn.com/entries/icons/original/000/005/600/its-something.jpg">
+                <script type="text/javascript">
+                            var width1 = 960,
+                            height1 = 600;
+
+                        var dataset_NN;
+
+                        loadData();
+
+                        function loadData(){
+                            //Load data from csv
+                            d3.csv("NN_Output.csv", function(error, data) {
+                                if (error) {  //If error is not null, something went wrong.
+                                    console.log(error);  //Log the error.
+                                } else {      //If no error, the file loaded correctly. Yay!
+
+                                    dataset_NN = data;
+                                    cleanData();
+                                    console.log(dataset_NN);
+                                    makeScale();
+                                    //
+                                    makePlot();
+                                }
+                            });
+                        }
+
+                        //Change to numbers from strings
+                        function cleanData(){
+                            dataset_NN.forEach(function(d) {
+                                d.Count = +d.Count;
+                                d.weight = +d.Weights;
+                                d.Weights = +d.Weights;
+                                if(d.Input_Vector === 'input'){
+
+                                    d.Input_Vector = 'Last smiley'
+                                }
+                                console.log(d.weight);
+                                return d;
+                            });
+
+                        }
+
+                        function makeScale(){
+                            rScale = d3.scale.linear()
+                                .domain([0, d3.max(dataset_NN, function(d) {
+                                    return d.Weights;
+                                })])
+                                .range([5, 20]);}
+
+
+                        var rScale;
+                        var nodes = [];
+                        var links = [];
+                        var node;
+                        var link;
+
+                        // Compute the distinct nodes from the links.
+                        function makePlot(){
+
+                            nodes = dataset_NN;
+                            nodes.push({Input_Vector:'output', weight: 0.5})
+
+                            for(var i = 0; i < dataset_NN.length; i++){
+                                links.push({source: nodes[i], target: nodes[nodes.length-1]})
+                            }
+
+                            var force = d3.layout.force()
+                                .nodes(nodes)
+                                .links(links)
+                                .size([width1, height1])
+                                .linkDistance(170)
+                                .charge(-300)
+                                .on("tick", tick)
+                                .start();
+
+                            var svg5 = d3.select("#neuralNetwork").append("svg")
+                                .attr("width", width1)
+                                .attr("height", height1);
+
+                            link = svg5.selectAll(".link")
+                                .data(force.links())
+                                .enter().append("line")
+                                .attr("class", "link");
+
+                            node = svg5.selectAll(".node")
+                                .data(force.nodes())
+                                .enter().append("g")
+                                .attr("class", "node")
+                                .on("mouseover", mouseover)
+                                .on("mouseout", mouseout)
+                                .call(force.drag);
+
+                            node.select
+                            node.append("circle")
+                                .attr("r", function(d) {return rScale(d.Weights)});
+
+                            node.append("text")
+                                .attr("x", 12)
+                                .attr("dy", ".35em")
+                                .text(function(d) { return d.Input_Vector; });
+                        }
+
+                        function tick() {
+                            link
+                                .attr("x1", function(d) { return d.source.x; })
+                                .attr("y1", function(d) { return d.source.y; })
+                                .attr("x2", function(d) { return d.target.x; })
+                                .attr("y2", function(d) { return d.target.y; });
+
+                            node
+                                .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+                        }
+
+                        function mouseover() {
+                            d3.select(this).select("circle").transition()
+                                .duration(750)
+                                .attr("r", function(d) {return rScale(d.Weights)*1.3})
+                            d3.select(this)
+                                .attr("class", "nodeSelected")
+
+                        }
+
+                        function mouseout() {
+                            d3.select(this).select("circle").transition()
+                                .duration(750)
+                                .attr("r",  function(d) {return rScale(d.Weights)});
+                            d3.select(this)
+                                .attr("class", "node")
+                        }
+                </script>
+            </div>
+        </div>
+    </body>
+</html>

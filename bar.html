@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <script src="//d3js.org/d3.v3.min.js"></script>
+        <style type="text/css">
+			/* No style rules here yet */		
+		</style>
+    </head>
+    <body>
+        <script type="text/javascript">
+            var maxSize = 700,
+                color = d3.scale.category20c();
+            
+            var bubble = d3.layout.pack()
+                .sort(null)
+                .size([maxSize,maxSize])
+                .padding(1);
+            
+            var svg = d3.select("#test")
+                .append("svg")
+                .attr("width", maxSize)
+                .attr("height", maxSize)
+                .attr("class", "bubble");
+            
+            d3.csv("worstSmileyNames.csv", function(data) {
+                
+                data = data.map(function(d){
+                    d.value = +d["rating"];
+                    d.value = d.value*d.value;
+                    console.log(d.value);
+                    return d;
+                });
+                
+                var nodes = bubble.nodes({children:data}).filter(function(d) { return !d.children; });
+                
+                var bubbles = svg.append("g")
+                    .attr("transform", "translate(0,0)")
+                    .selectAll(".bubble")
+                    .data(nodes)
+                    .enter();
+                
+                //create the bubbles
+                bubbles.append("circle")
+                    .attr("r", function(d){ return d.r; })
+                    .attr("cx", function(d){ return d.x; })
+                    .attr("cy", function(d){ return d.y; })
+                    .style("fill", function(d) {
+                        if(d.value > 12){
+                            return "#3182bd";
+                        } else if (d.value > 2.5){
+                            return "#fdae6b";
+                        }else {
+                            return "#a1d99b";
+                        }
+                        //return color(d.value); 
+                    });
+                
+                //format the text for each bubble
+                bubbles.append("text")
+                    .attr("x", function(d){ return d.x; })
+                    .attr("y", function(d){ return d.y + 5; })
+                    .attr("text-anchor", "middle")
+                    .text(function(d){ return d["navn"]; })
+                    .style({
+                        "fill":"white", 
+                        "font-family":"Helvetica Neue, Helvetica, Arial, san-serif",
+                        "font-size": "12px"
+                    });
+                console.log(data[0]);
+                console.log(data[1]);
+            });
+        </script>
+            
+    </body>
+</html>
+<meta charset="utf-8">
