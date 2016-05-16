@@ -14,7 +14,7 @@
         <div id= "middle-strip">
             <div id="introduction">
                 <h1 id="firstH1">Welcome to our website!</h1>
-                <p></p>
+                <p>This website is about things we discovered by analyzing the smiley data from The Danish Veterinary and Food Administration, combined with others dataset. Our expection can be seen in this video </p>
             </div>
             <div id="StackBarContent">
                 <h1>Distribution of smilies</h1>
@@ -534,6 +534,194 @@
                                 .attr("class", "node")
                         }
                 </script>
+            </div>
+            <hr>
+            <div id="lineChart">
+                <script>
+                    window.onload = function() {
+                      for(i = 0; i<4; i++){
+                        initLineChart(i)
+                      }
+                    };
+
+                    var smileyMapper = ["Elite", "Very happy","Ok","Bad","Really bad"]
+
+                    function initLineChart(groupId){
+                      var dataset;
+                      var margin = {top: 20, right: 20, bottom: 30, left: 40},
+                          width = 800 - margin.left - margin.right,
+                          height = 300 - margin.top - margin.bottom;
+
+                      // setup x 
+                      var xValue = function(d) { return d.x;}, // data -> value
+                          xScale = d3.scale.linear().range([0, width]), // value -> display
+                          xMap = function(d) { return xScale(xValue(d));}, // data -> display
+                          xAxis = d3.svg.axis().scale(xScale).orient("bottom");
+
+                      // setup y
+                      var yValue = function(d) { return d.y;}, // data -> value
+                          yScale = d3.scale.linear().range([height, 0]), // value -> display
+                          yMap = function(d) { return yScale(yValue(d));}, // data -> display
+                          yAxis = d3.svg.axis().scale(yScale).orient("left");
+
+                      var line = d3.svg.line()
+                          .x(function(d) { return xMap(d); })
+                          .y(function(d) { return yMap(d); });
+
+                    // setup fill color
+                    var cValue = function(d) { return d.type;},
+                        color = d3.scale.category10();
+
+                      // add the graph canvas to the body of the webpage
+                      d3.select("#d_lineplot").append("h3").text("group " + (groupId+1))
+                      var groupName = d3.select("#d_lineplot").append("p")
+                      var svg = d3.select("#d_lineplot").append("svg")
+                          .attr("width", width + margin.left + margin.right)
+                          .attr("height", height + margin.top + margin.bottom)
+                          .append("g")
+                          .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+                      console.log(svg)
+                      // add the tooltip area to the webpage
+                      var tooltip = d3.select("#d_lineplot").append("div")
+                          .attr("class", "tooltip")
+                          .style("opacity", 0);
+
+                      // load data
+                      d3.json("kontroltid_hist_data_grouped.json", function(error, data) {
+                        dataset = data
+
+                        xScale.domain([0, 138]);
+                        yScale.domain([0, 12]);
+
+
+                        // reformulate data for d3
+                        //groupId = 1;
+                        var groupData = dataset.items[groupId];
+                        var data = [];
+                        for(smileyId = 0; smileyId < groupData.groupHist.length; smileyId++){
+                          lineData = [];
+                          groupData.groupHist[smileyId].forEach(function(d, ix, array) {
+                            lineData.push({
+                              x: (dataset.bins[ix]+dataset.bins[ix+1])/2/7,
+                              y: d/groupData.antal*100,
+                              type: smileyId,
+                            });
+                          });
+                          data.push(lineData);
+                        }
+                        var flatData = [].concat.apply([], data);
+
+                        var groupText = ""
+                        switch(groupId){
+                        case 0:
+                          groupText = "This group contains a very broad set of sectors, with a very long inspection cyclus of often two years or more. ";
+                          break;
+                        case 1:
+                          groupText = "This group mostly contains restaurants, catering, food shops etc. These are checked with relatively short intervals, most within a year. It should be noted that the amount of Elite smileys is very high for this group. Furthermore, that the random suprise visits follow a poisson distribution with an expected value of around 20 weeks. "
+                          break;
+                        case 2:
+                          groupText = "This is the raw meat, fish and eggs group. With potentially problematic production environments come a very short inspection interval peaking at 6 weeks. "
+                          break;
+                        case 3:
+                          groupText = "Like group 1 a very broad group. but this group is mostly checked once a year. "
+                        }
+
+
+                        groupName.text(groupText + " The member sectors are; " + groupData.groups);
+
+                        // line
+                        var line_ = svg.selectAll(".plotline").data(data);
+                        line_.enter()
+                            .append("path")
+                            .attr({
+                              class:"plotline",
+                              stroke: function(d) {return color(cValue(d[0]))}
+                            });
+
+                        line_.transition().duration(500).attr({
+                          d: line,
+                        })
+
+                        // draw dots
+                        var dots_ = svg.selectAll(".dot").data(flatData);
+                        dots_.enter().append("circle")
+                            .attr("class", "dot")
+                            .attr("r", 2)
+                            .attr("cx", xMap)
+                            .attr("cy", yMap)
+                            .style("fill", function(d) { return color(cValue(d));}) 
+                            .on("mouseover", function(d) {
+                                tooltip.transition()
+                                     .duration(200)
+                                     .style("opacity", .9);
+                                tooltip.html("(" + xValue(d) + ", " + Math.round(yValue(d)*100)/100 + ")")
+                                     .style("left", (d3.event.pageX + 5) + "px")
+                                     .style("top", (d3.event.pageY - 28) + "px");
+                            })
+                            .on("mouseout", function(d) {
+                                tooltip.transition()
+                                     .duration(500)
+                                     .style("opacity", 0);
+                            });
+
+                        dots_.transition().duration(500).attr("r", 2)
+                            .attr("cx", xMap)
+                            .attr("cy", yMap);
+
+                        // x-axis
+                        svg.append("g")
+                            .attr("class", "x axis")
+                            .attr("transform", "translate(0," + height + ")")
+                            .call(xAxis)
+                          .append("text")
+                            .attr("class", "label")
+                            .attr("x", width)
+                            .attr("y", -6)
+                            .style("text-anchor", "end")
+                            .text("Time (Weeks)");
+
+                        // y-axis
+                        svg.append("g")
+                            .attr("class", "y axis")
+                            .call(yAxis)
+                          .append("text")
+                            .attr("class", "label")
+                            .attr("transform", "rotate(-90)")
+                            .attr("y", 6)
+                            .attr("dy", ".71em")
+                            .style("text-anchor", "end")
+                            .text("Percentage of inspections");
+
+                        // draw legend
+                        var legend = svg.selectAll(".legend")
+                            .data(color.domain())
+                          .enter().append("g")
+                            .attr("class", "legend")
+                            .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
+
+                        // draw legend colored rectangles
+                        legend.append("rect")
+                            .attr("x", width - 18)
+                            .attr("width", 18)
+                            .attr("height", 18)
+                            .style("fill", color);
+
+                        // draw legend text
+                        legend.append("text")
+                            .attr("x", width - 24)
+                            .attr("y", 9)
+                            .attr("dy", ".35em")
+                            .style("text-anchor", "end")
+                            .text(function(d) { return smileyMapper[d];})
+                        });
+
+
+                      }
+
+                </script>
+                <div id="d_header"><h1>Timing of Inspection visits</h1><p>From the smiley data time between control visits can be calculated. Using this knowledge, the sectors have been clustered into a set of four groups with distinct inspection patterns.</p></div>
+                <div id="d_lineplot"></div>
             </div>
         </div>
     </body>

@@ -127,3 +127,17 @@ stroke-width: 1.5;
     stroke-width: 1.5px;
     z-index: -1; position:relative
 }
+.dot {
+  stroke: none;
+}
+
+.tooltip {
+  position: absolute;
+  width: 200px;
+  height: 28px;
+  pointer-events: none;
+}
+.plotline {
+  fill: none;
+  stroke-width: 1.5px;
+}
